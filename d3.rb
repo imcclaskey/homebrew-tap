@@ -4,7 +4,7 @@ class D3 < Formula
   
   # Use the version from the constant in version.go
   # The version here should match the constant in internal/version/version.go
-  version "0.2.0"
+  version "0.1.0"
   
   # Alternatively, you would need to update this version manually when releasing
   # The best practice is to keep this in sync with the Go code
