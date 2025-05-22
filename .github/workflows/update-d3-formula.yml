@@ -3,6 +3,10 @@ name: Update D3 Formula
 on:
   workflow_dispatch:  # Allow manual triggering
 
+# Add permissions to allow pushing
+permissions:
+  contents: write
+
 jobs:
   update-d3-formula:
     runs-on: ubuntu-latest
