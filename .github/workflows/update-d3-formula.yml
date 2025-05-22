@@ -1,0 +1,64 @@
+name: Update D3 Formula
+
+on:
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  update-d3-formula:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Get latest D3 version
+        id: check-version
+        run: |
+          # Get the latest release version from GitHub API
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/imcclaskey/d3/releases/latest | jq -r .tag_name | sed 's/^v//')
+          echo "Latest version: $LATEST_VERSION"
+          
+          # Get current version from formula
+          CURRENT_VERSION=$(grep -o 'version "[^"]*"' d3.rb | cut -d'"' -f2)
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Output the results
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Update D3 formula if needed
+        if: steps.check-version.outputs.latest_version != steps.check-version.outputs.current_version
+        run: |
+          NEW_VERSION=${{ steps.check-version.outputs.latest_version }}
+          
+          # Download binaries to calculate sha256
+          mkdir -p downloads
+          
+          # Update darwin-arm64 (M1/M2 Mac)
+          curl -L -o "downloads/d3-darwin-arm64" "https://github.com/imcclaskey/d3/releases/download/v${NEW_VERSION}/d3-darwin-arm64"
+          SHA_DARWIN_ARM64=$(sha256sum "downloads/d3-darwin-arm64" | cut -d ' ' -f 1)
+          sed -i "s|sha256 \"[a-f0-9]*\" # darwin-arm64|sha256 \"${SHA_DARWIN_ARM64}\" # darwin-arm64|g" d3.rb
+          
+          # Update darwin-amd64 (Intel Mac)
+          curl -L -o "downloads/d3-darwin-amd64" "https://github.com/imcclaskey/d3/releases/download/v${NEW_VERSION}/d3-darwin-amd64"
+          SHA_DARWIN_AMD64=$(sha256sum "downloads/d3-darwin-amd64" | cut -d ' ' -f 1)
+          sed -i "s|sha256 \"[a-f0-9]*\" # darwin-amd64|sha256 \"${SHA_DARWIN_AMD64}\" # darwin-amd64|g" d3.rb
+          
+          # Update linux-arm64
+          curl -L -o "downloads/d3-linux-arm64" "https://github.com/imcclaskey/d3/releases/download/v${NEW_VERSION}/d3-linux-arm64"
+          SHA_LINUX_ARM64=$(sha256sum "downloads/d3-linux-arm64" | cut -d ' ' -f 1)
+          sed -i "s|sha256 \"[a-f0-9]*\" # linux-arm64|sha256 \"${SHA_LINUX_ARM64}\" # linux-arm64|g" d3.rb
+          
+          # Update linux-amd64
+          curl -L -o "downloads/d3-linux-amd64" "https://github.com/imcclaskey/d3/releases/download/v${NEW_VERSION}/d3-linux-amd64"
+          SHA_LINUX_AMD64=$(sha256sum "downloads/d3-linux-amd64" | cut -d ' ' -f 1)
+          sed -i "s|sha256 \"[a-f0-9]*\" # linux-amd64|sha256 \"${SHA_LINUX_AMD64}\" # linux-amd64|g" d3.rb
+          
+          # Update version in formula
+          sed -i "s|version \"[0-9.]*\"|version \"${NEW_VERSION}\"|g" d3.rb
+          
+          # Commit and push changes
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add d3.rb
+          git commit -m "Update D3 to version ${NEW_VERSION}"
+          git push
